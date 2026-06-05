@@ -43,6 +43,7 @@ except Exception as e:
 skill_column = None
 
 possible_skill_columns = [
+    "Key Skills",
     "Skills",
     "skills",
     "Skill",
@@ -56,9 +57,10 @@ for col in possible_skill_columns:
 
 if skill_column is None:
 
-    st.warning(
-        "No skills column found in jobss.csv"
-    )
+    st.error("No skill-related column found.")
+
+    st.write("Available Columns:")
+    st.write(jobs_df.columns.tolist())
 
     st.stop()
 
@@ -70,12 +72,14 @@ market_skills = []
 
 for row in jobs_df[skill_column].dropna():
 
-    skills = str(row).split(",")
+    skills = str(row).split("|")
 
     for skill in skills:
-        market_skills.append(
-            skill.strip().lower()
-        )
+
+        skill = skill.strip().lower()
+
+        if skill:
+            market_skills.append(skill)
 
 market_skills = sorted(
     list(set(market_skills))
@@ -171,7 +175,7 @@ skill_count = {}
 
 for row in jobs_df[skill_column].dropna():
 
-    for skill in str(row).split(","):
+    for skill in str(row).split("|"):
 
         skill = skill.strip()
 
