@@ -1,71 +1,80 @@
+import os
 import pandas as pd
-import numpy as np
 import joblib
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score
 
-# Load Dataset
+# Create models directory if not exists
+os.makedirs("models", exist_ok=True)
+
+# Load dataset
 df = pd.read_csv("data/career_recommendation_dataset.csv")
 
 # Remove missing values
 df = df.dropna()
 
-# Target Column
-target_column = "Primary_Career_Recommendation"
+# Target column
+TARGET = "Primary_Career_Recommendation"
 
-# Select Numerical Features
-X = df.select_dtypes(include=["int64", "float64"])
+# Check target column exists
+if TARGET not in df.columns:
+    raise ValueError(
+        f"Target column '{TARGET}' not found.\n"
+        f"Available columns:\n{list(df.columns)}"
+    )
 
-# Remove target if numeric
-if target_column in X.columns:
-    X = X.drop(columns=[target_column])
+# Features
+X = df.drop(columns=[TARGET])
 
-# Target Variable
-y = df[target_column]
+# Keep only numerical columns
+X = X.select_dtypes(include=["int64", "float64"])
 
-# Encode Target
+# Target
+y = df[TARGET]
+
+# Encode target labels
 label_encoder = LabelEncoder()
 y_encoded = label_encoder.fit_transform(y)
 
-# Scale Features
+# Scale features
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Train Test Split
+# Split data
 X_train, X_test, y_train, y_test = train_test_split(
     X_scaled,
     y_encoded,
     test_size=0.2,
-    random_state=42,
-    stratify=y_encoded
+    random_state=42
 )
 
-# Model
+# Train model
 model = RandomForestClassifier(
     n_estimators=300,
-    max_depth=20,
-    random_state=42,
-    n_jobs=-1
+    random_state=42
 )
 
-# Train
 model.fit(X_train, y_train)
 
-# Predictions
+# Evaluate
 predictions = model.predict(X_test)
 
-# Evaluation
 accuracy = accuracy_score(y_test, predictions)
 
+print("=" * 50)
+print("Career Prediction Model")
+print("=" * 50)
 print(f"Accuracy: {accuracy:.4f}")
-print(classification_report(y_test, predictions))
 
-# Save Artifacts
+# Save files
 joblib.dump(model, "models/career_predictor.pkl")
-joblib.dump(label_encoder, "models/label_encoder.pkl")
 joblib.dump(scaler, "models/scaler.pkl")
+joblib.dump(label_encoder, "models/label_encoder.pkl")
 
-print("Model Saved Successfully!")
+print("\nFiles Saved Successfully:")
+print("models/career_predictor.pkl")
+print("models/scaler.pkl")
+print("models/label_encoder.pkl")
