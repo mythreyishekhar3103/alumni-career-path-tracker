@@ -1,155 +1,71 @@
 import pandas as pd
+import numpy as np
 import joblib
-import os
 
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import r2_score
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
 
-# -----------------------------------------
 # Load Dataset
-# -----------------------------------------
+df = pd.read_csv("data/career_recommendation_dataset.csv")
 
-df = pd.read_csv("data/jobss.csv")
+# Remove missing values
+df = df.dropna()
 
-# -----------------------------------------
-# Clean Data
-# -----------------------------------------
+# Target Column
+target_column = "Primary_Career_Recommendation"
 
-df = df.dropna(
-    subset=[
-        "Job Experience Required",
-        "Role Category",
-        "Industry",
-        "Location",
-        "sal"
-    ]
-)
+# Select Numerical Features
+X = df.select_dtypes(include=["int64", "float64"])
 
-# -----------------------------------------
-# Experience Extraction
-# -----------------------------------------
+# Remove target if numeric
+if target_column in X.columns:
+    X = X.drop(columns=[target_column])
 
-def get_exp(exp):
+# Target Variable
+y = df[target_column]
 
-    try:
+# Encode Target
+label_encoder = LabelEncoder()
+y_encoded = label_encoder.fit_transform(y)
 
-        exp = str(exp)
+# Scale Features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 
-        if "-" in exp:
-
-            return int(
-                exp.split("-")[0].strip()
-            )
-
-        return 0
-
-    except:
-
-        return 0
-
-df["Experience"] = df[
-    "Job Experience Required"
-].apply(get_exp)
-
-# -----------------------------------------
-# Label Encoding
-# -----------------------------------------
-
-role_encoder = LabelEncoder()
-industry_encoder = LabelEncoder()
-location_encoder = LabelEncoder()
-
-df["Role Category"] = role_encoder.fit_transform(
-    df["Role Category"]
-)
-
-df["Industry"] = industry_encoder.fit_transform(
-    df["Industry"]
-)
-
-df["Location"] = location_encoder.fit_transform(
-    df["Location"]
-)
-
-# -----------------------------------------
-# Features
-# -----------------------------------------
-
-X = df[
-    [
-        "Experience",
-        "Role Category",
-        "Industry",
-        "Location"
-    ]
-]
-
-y = df["sal"]
-
-# -----------------------------------------
-# Split
-# -----------------------------------------
-
+# Train Test Split
 X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
+    X_scaled,
+    y_encoded,
     test_size=0.2,
-    random_state=42
+    random_state=42,
+    stratify=y_encoded
 )
 
-# -----------------------------------------
 # Model
-# -----------------------------------------
-
-model = RandomForestRegressor(
-    n_estimators=200,
-    random_state=42
+model = RandomForestClassifier(
+    n_estimators=300,
+    max_depth=20,
+    random_state=42,
+    n_jobs=-1
 )
 
-model.fit(
-    X_train,
-    y_train
-)
+# Train
+model.fit(X_train, y_train)
 
-pred = model.predict(X_test)
+# Predictions
+predictions = model.predict(X_test)
 
-print(
-    "R2 Score:",
-    r2_score(
-        y_test,
-        pred
-    )
-)
+# Evaluation
+accuracy = accuracy_score(y_test, predictions)
 
-# -----------------------------------------
-# Save
-# -----------------------------------------
+print(f"Accuracy: {accuracy:.4f}")
+print(classification_report(y_test, predictions))
 
-os.makedirs(
-    "models",
-    exist_ok=True
-)
+# Save Artifacts
+joblib.dump(model, "models/career_predictor.pkl")
+joblib.dump(label_encoder, "models/label_encoder.pkl")
+joblib.dump(scaler, "models/scaler.pkl")
 
-joblib.dump(
-    model,
-    "models/salary_predictor.pkl"
-)
-
-joblib.dump(
-    role_encoder,
-    "models/role_encoder.pkl"
-)
-
-joblib.dump(
-    industry_encoder,
-    "models/industry_encoder.pkl"
-)
-
-joblib.dump(
-    location_encoder,
-    "models/location_encoder.pkl"
-)
-
-print("Model Saved Successfully")
+print("Model Saved Successfully!")
