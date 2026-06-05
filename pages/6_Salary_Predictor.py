@@ -3,9 +3,9 @@ import pandas as pd
 import joblib
 import os
 
-# --------------------------------------------------
-# Page Configuration
-# --------------------------------------------------
+# -----------------------------------------
+# Page Config
+# -----------------------------------------
 
 st.set_page_config(
     page_title="Salary Predictor",
@@ -13,129 +13,135 @@ st.set_page_config(
     layout="wide"
 )
 
-# --------------------------------------------------
-# Title
-# --------------------------------------------------
-
 st.title("💰 Salary Predictor")
-st.markdown(
-    """
-    Predict expected salary based on
-    experience and skill ratings.
-    """
+
+# -----------------------------------------
+# Load Dataset
+# -----------------------------------------
+
+df = pd.read_csv(
+    "data/jobss.csv"
 )
 
-# --------------------------------------------------
-# Model Paths
-# --------------------------------------------------
+# -----------------------------------------
+# Load Models
+# -----------------------------------------
 
-MODEL_PATH = "models/salary_predictor.pkl"
-SCALER_PATH = "models/scaler.pkl"
+try:
 
-# --------------------------------------------------
-# Check Model Availability
-# --------------------------------------------------
+    model = joblib.load(
+        "models/salary_predictor.pkl"
+    )
 
-if not os.path.exists(MODEL_PATH):
+    role_encoder = joblib.load(
+        "models/role_encoder.pkl"
+    )
 
-    st.warning(
+    industry_encoder = joblib.load(
+        "models/industry_encoder.pkl"
+    )
+
+    location_encoder = joblib.load(
+        "models/location_encoder.pkl"
+    )
+
+except:
+
+    st.error(
         """
         salary_predictor.pkl not found.
 
-        Train the salary prediction model first
-        or add the model file to the models folder.
+        Run:
+
+        python src/train_salary_model.py
         """
     )
 
     st.stop()
 
-# --------------------------------------------------
-# Load Model
-# --------------------------------------------------
-
-salary_model = joblib.load(MODEL_PATH)
-
-if os.path.exists(SCALER_PATH):
-    scaler = joblib.load(SCALER_PATH)
-else:
-    scaler = None
-
-# --------------------------------------------------
+# -----------------------------------------
 # User Inputs
-# --------------------------------------------------
+# -----------------------------------------
 
-st.subheader("Enter Candidate Details")
+st.subheader("Enter Details")
 
-col1, col2 = st.columns(2)
+experience = st.slider(
+    "Experience (Years)",
+    0,
+    20,
+    2
+)
 
-with col1:
-
-    experience = st.slider(
-        "Years of Experience",
-        0,
-        20,
-        2
+role_category = st.selectbox(
+    "Role Category",
+    sorted(
+        df["Role Category"]
+        .dropna()
+        .unique()
     )
+)
 
-    communication = st.slider(
-        "Communication Skill",
-        0,
-        100,
-        70
+industry = st.selectbox(
+    "Industry",
+    sorted(
+        df["Industry"]
+        .dropna()
+        .unique()
     )
+)
 
-    leadership = st.slider(
-        "Leadership Skill",
-        0,
-        100,
-        70
+location = st.selectbox(
+    "Location",
+    sorted(
+        df["Location"]
+        .dropna()
+        .unique()
     )
+)
 
-with col2:
-
-    technical_skill = st.slider(
-        "Technical Skill",
-        0,
-        100,
-        75
-    )
-
-    creativity = st.slider(
-        "Creativity",
-        0,
-        100,
-        70
-    )
-
-# --------------------------------------------------
+# -----------------------------------------
 # Prediction
-# --------------------------------------------------
+# -----------------------------------------
 
-if st.button("Predict Salary"):
+if st.button(
+    "Predict Salary"
+):
 
     try:
 
-        input_data = [[
-            experience,
-            communication,
-            leadership,
-            technical_skill,
-            creativity
-        ]]
+        role_value = role_encoder.transform(
+            [role_category]
+        )[0]
 
-        if scaler:
-            input_data = scaler.transform(
-                input_data
-            )
+        industry_value = industry_encoder.transform(
+            [industry]
+        )[0]
 
-        predicted_salary = (
-            salary_model.predict(
-                input_data
-            )[0]
+        location_value = location_encoder.transform(
+            [location]
+        )[0]
+
+        input_data = pd.DataFrame(
+            [[
+                experience,
+                role_value,
+                industry_value,
+                location_value
+            ]],
+            columns=[
+                "Experience",
+                "Role Category",
+                "Industry",
+                "Location"
+            ]
         )
 
+        salary = model.predict(
+            input_data
+        )[0]
+
         st.success(
-            f"💵 Predicted Salary: ₹ {predicted_salary:,.0f}"
+            f"Estimated Salary: ₹ {salary:,.0f}"
         )
 
     except Exception as e:
@@ -144,39 +150,12 @@ if st.button("Predict Salary"):
             f"Prediction Error: {e}"
         )
 
-# --------------------------------------------------
-# Salary Insights
-# --------------------------------------------------
-
-st.markdown("---")
-
-st.subheader("📊 Salary Prediction Factors")
-
-st.info(
-    """
-    Salary estimation is influenced by:
-
-    • Experience
-
-    • Communication Skills
-
-    • Leadership Ability
-
-    • Technical Skills
-
-    • Creativity
-
-    The prediction accuracy depends on
-    the quality of training data.
-    """
-)
-
-# --------------------------------------------------
+# -----------------------------------------
 # Footer
-# --------------------------------------------------
+# -----------------------------------------
 
 st.markdown("---")
 
 st.caption(
-    "Alumni Career Path Tracker | Salary Prediction Module"
+    "Alumni Career Path Tracker | Salary Predictor"
 )
