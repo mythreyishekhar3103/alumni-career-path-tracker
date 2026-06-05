@@ -3,78 +3,79 @@ import pandas as pd
 import joblib
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-# Create models directory if not exists
-os.makedirs("models", exist_ok=True)
 
-# Load dataset
-df = pd.read_csv("data/career_recommendation_dataset.csv")
+# -------------------------------
+# 1. Load dataset
+# -------------------------------
+DATA_PATH = "data/salary.csv"   # change if your file name differs
 
-# Remove missing values
+if not os.path.exists(DATA_PATH):
+    raise FileNotFoundError(f"Dataset not found at {DATA_PATH}")
+
+df = pd.read_csv(DATA_PATH)
+
+print("Dataset loaded successfully!")
+print(df.head())
+
+
+# -------------------------------
+# 2. Data Preprocessing
+# -------------------------------
+# Example assumption: dataset has columns like:
+# YearsExperience -> input
+# Salary -> target
+
+if "YearsExperience" not in df.columns or "Salary" not in df.columns:
+    raise ValueError("Dataset must contain 'YearsExperience' and 'Salary' columns")
+
+# Handle missing values
 df = df.dropna()
 
-# Target column
-TARGET = "Primary_Career_Recommendation"
+X = df[["YearsExperience"]]
+y = df["Salary"]
 
-# Check target column exists
-if TARGET not in df.columns:
-    raise ValueError(
-        f"Target column '{TARGET}' not found.\n"
-        f"Available columns:\n{list(df.columns)}"
-    )
 
-# Features
-X = df.drop(columns=[TARGET])
-
-# Keep only numerical columns
-X = X.select_dtypes(include=["int64", "float64"])
-
-# Target
-y = df[TARGET]
-
-# Encode target labels
-label_encoder = LabelEncoder()
-y_encoded = label_encoder.fit_transform(y)
-
-# Scale features
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-
-# Split data
+# -------------------------------
+# 3. Train-test split
+# -------------------------------
 X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled,
-    y_encoded,
-    test_size=0.2,
-    random_state=42
+    X, y, test_size=0.2, random_state=42
 )
 
-# Train model
-model = RandomForestClassifier(
-    n_estimators=300,
-    random_state=42
-)
 
+# -------------------------------
+# 4. Model training
+# -------------------------------
+model = LinearRegression()
 model.fit(X_train, y_train)
 
-# Evaluate
-predictions = model.predict(X_test)
+print("Model training completed!")
 
-accuracy = accuracy_score(y_test, predictions)
 
-print("=" * 50)
-print("Career Prediction Model")
-print("=" * 50)
-print(f"Accuracy: {accuracy:.4f}")
+# -------------------------------
+# 5. Evaluation
+# -------------------------------
+y_pred = model.predict(X_test)
 
-# Save files
-joblib.dump(model, "models/career_predictor.pkl")
-joblib.dump(scaler, "models/scaler.pkl")
-joblib.dump(label_encoder, "models/label_encoder.pkl")
+mae = mean_absolute_error(y_test, y_pred)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
 
-print("\nFiles Saved Successfully:")
-print("models/career_predictor.pkl")
-print("models/scaler.pkl")
-print("models/label_encoder.pkl")
+print("\nModel Performance:")
+print("MAE:", mae)
+print("MSE:", mse)
+print("R2 Score:", r2)
+
+
+# -------------------------------
+# 6. Save model (.pkl)
+# -------------------------------
+os.makedirs("models", exist_ok=True)
+
+MODEL_PATH = "models/salary_predictor.pkl"
+joblib.dump(model, MODEL_PATH)
+
+print(f"\nModel saved successfully at: {MODEL_PATH}")
